@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geo Caribe — Costa Rica</title>
+
+  <!-- Leaflet: librería de mapas interactivos -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <!-- Fuentes tipográficas de Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Supabase: cliente para autenticación de usuarios -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* Reset básico y box-sizing global */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Variables de color y tipografía del tema */
+    :root {
+      --verde: #1a4a2e;
+      --verde-med: #2d6a44;
+      --verde-claro: #4a9463;
+      --hoja: #6ab87a;
+      --crema: #f5f0e8;
+      --crema-oscura: #ede5d8;
+      --tierra: #8b5e3c;
+      --dorado: #c9912a;
+      --coral: #d45a3a;
+      --texto: #1c1c1c;
+      --muted: #6b6b6b;
+      --bg-panel: #faf8f4;
+    }
+
+    /* Fondo general y fuente base */
+    html, body { height: 100%; overflow: hidden; font-family: 'DM Sans', sans-serif; background: var(--crema); }
+
+    /* ── HEADER: barra superior fija con logo, título y controles ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 2000;
+      height: 56px;
+      background: var(--verde);
+      display: flex; align-items: center; padding: 0 16px; gap: 12px;
+      border-bottom: 2px solid var(--verde-claro);
+    }
+    /* Logo SVG en el header */
+    #header-logo { width: 34px; height: 34px; flex-shrink: 0; }
+    /* Nombre de la app y subtítulo de región */
+    #header-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px; font-weight: 600;
+      color: var(--crema); letter-spacing: 0.02em; line-height: 1.1;
+      flex-shrink: 0;
+    }
+    #header-title span {
+      display: block; font-family: 'DM Sans', sans-serif;
+      font-size: 10px; font-weight: 300; color: var(--hoja);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+
+    /* ── BUSCADOR dentro del header ── */
+    #search-wrap {
+      flex: 1; max-width: 340px; position: relative;
+    }
+    /* Campo de texto del buscador */
+    #search-input {
+      width: 100%; padding: 7px 34px 7px 14px;
+      border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.12);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; color: white;
+      outline: none; transition: border-color 0.2s, background 0.2s;
+    }
+    #search-input:focus {
+      border-color: var(--hoja);
+      background: rgba(255,255,255,0.18);
+    }
+    #search-input::placeholder { color: rgba(255,255,255,0.5); }
+    /* Botón para limpiar el texto del buscador */
+    #search-clear {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: rgba(255,255,255,0.6); font-size: 14px;
+      display: none; line-height: 1; padding: 2px;
+    }
+    #search-clear:hover { color: white; }
+    /* Lista desplegable con los resultados de búsqueda */
+    #search-results {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      background: white; border-radius: 14px;
+      border: 1px solid var(--crema-oscura);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+      display: none; overflow: hidden; z-index: 3000;
+    }
+    /* Cada resultado individual en el dropdown */
+    .search-item {
+      padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--crema-oscura);
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--texto); transition: background 0.15s;
+    }
+    .search-item:last-child { border-bottom: none; }
+    .search-item:hover { background: var(--crema); }
+    /* Punto de color que indica el nivel del lugar en el resultado */
+    .search-item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    /* Mensaje cuando no hay coincidencias en la búsqueda */
+    .search-no-result {
+      padding: 12px 16px; font-size: 13px; color: var(--muted);
+      font-style: italic; text-align: center;
+    }
+
+    /* Botones del lado derecho del header: inicio, email y salir */
+    #header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    #btn-inicio {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px; color: var(--crema); font-size: 12px;
+      font-family: 'DM Sans', sans-serif; padding: 5px 12px; cursor: pointer;
+      letter-spacing: 0.04em; transition: background 0.2s; white-space: nowrap;
+    }
+    #btn-inicio:hover { background: rgba(255,255,255,0.2); }
+    /* Muestra el email del usuario autenticado */
+    #usuario-email { font-size: 12px; color: var(--hoja); font-family: 'DM Sans', sans-serif; letter-spacing: 0.04em; }
+    #btn-logout {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px; color: var(--crema); font-size: 12px;
+      font-family: 'DM Sans', sans-serif; padding: 5px 12px; cursor: pointer;
+      letter-spacing: 0.04em; transition: background 0.2s;
+    }
+    #btn-logout:hover { background: rgba(255,80,80,0.25); }
+
+    /* Contenedor del mapa, ocupa todo el espacio bajo el header */
+    #map-wrap { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; }
+    #map { width: 100%; height: 100%; }
+
+    /* ── PANEL LATERAL: se desliza desde la derecha al hacer clic en un marcador ── */
+    #side-panel {
+      position: absolute; top: 0; right: -440px; width: 420px; height: 100%;
+      background: var(--bg-panel); border-left: 1px solid var(--crema-oscura);
+      transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
+      z-index: 1000; display: flex; flex-direction: column; overflow: hidden;
+    }
+    /* Clase que activa el panel empujándolo a la vista */
+    #side-panel.open { right: 0; }
+
+    /* ── GALERÍA DE IMÁGENES en la parte superior del panel ── */
+    #panel-img-wrap {
+      width: 100%; height: 200px; flex-shrink: 0; position: relative;
+      overflow: hidden; background: var(--verde-med);
+    }
+    /* Cada slide de imagen */
+    .gallery-slide {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.4s;
+    }
+    .gallery-slide img { width: 100%; height: 100%; object-fit: cover; }
+    /* Slide oculto (no activo) */
+    .gallery-slide.hidden { opacity: 0; pointer-events: none; }
+    /* Ícono de planta que se muestra si no hay imágenes */
+    #panel-img-placeholder {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 64px;
+      z-index: 2;
+    }
+    /* Gradiente en la parte inferior de la imagen para que el texto encima sea legible */
+    #panel-img-wrap::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+      background: linear-gradient(transparent, var(--bg-panel)); pointer-events: none; z-index: 3;
+    }
+    /* Flechas para navegar entre imágenes */
+    .gallery-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      z-index: 10; background: rgba(0,0,0,0.45); border: none;
+      border-radius: 50%; width: 32px; height: 32px; cursor: pointer;
+      color: white; font-size: 16px; display: flex; align-items: center;
+      justify-content: center; transition: background 0.2s; line-height: 1;
+    }
+    .gallery-arrow:hover { background: rgba(0,0,0,0.7); }
+    #gallery-prev { left: 10px; }
+    #gallery-next { right: 10px; }
+    .gallery-arrow.hidden { display: none; }
+    /* Puntos indicadores de la foto activa */
+    #gallery-dots {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 10; display: flex; gap: 5px;
+    }
+    .gdot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.5); border: none; padding: 0; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .gdot.active { background: white; }
+
+    /* Botón para cerrar el panel lateral */
+    #panel-close {
+      position: absolute; top: 10px; right: 10px; z-index: 10;
+      background: rgba(0,0,0,0.45); border: none; border-radius: 50%;
+      width: 30px; height: 30px; cursor: pointer; color: white;
+      font-size: 15px; display: flex; align-items: center; justify-content: center;
+    }
+    #panel-close:hover { background: rgba(0,0,0,0.65); }
+
+    /* Área de contenido del panel con scroll */
+    #panel-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    #panel-body { padding: 12px 20px 20px; overflow-y: auto; flex: 1; }
+
+    /* Etiqueta de nivel con colores según dificultad */
+    #panel-nivel {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px;
+    }
+    .nivel-principiante { background: #e6f4ea; color: #2d6a44; }
+    .nivel-intermedio    { background: #fff4e0; color: #8b5e1c; }
+    .nivel-avanzado      { background: #fdecea; color: #a93226; }
+    /* Título del lugar */
+    #panel-title {
+      font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600;
+      color: var(--texto); margin-bottom: 2px; line-height: 1.2;
+    }
+    /* Subtítulo con ubicación */
+    #panel-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    /* Descripción larga del lugar */
+    #panel-desc { font-size: 14px; line-height: 1.7; color: var(--texto); margin-bottom: 16px; }
+    /* Cuadrícula de 2 columnas para info rápida (época, naturaleza) */
+    .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .info-card { background: white; border: 1px solid var(--crema-oscura); border-radius: 10px; padding: 10px 12px; }
+    .info-card-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
+    .info-card-value { font-size: 13px; font-weight: 500; color: var(--texto); }
+    .info-card-icon { font-size: 18px; margin-bottom: 4px; }
+    /* Títulos de sección dentro del panel */
+    .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; margin-bottom: 8px; margin-top: 16px; }
+    /* Contenedor de etiquetas de equipo recomendado */
+    #panel-equipo { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .equipo-tag {
+      font-size: 12px; padding: 4px 10px; border-radius: 20px;
+      background: var(--crema-oscura); color: var(--verde);
+      font-weight: 500; border: 1px solid rgba(74,148,99,0.2);
+    }
+    /* Contenedor de tags de características del lugar */
+    #panel-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .ptag {
+      font-size: 12px; padding: 4px 10px; border-radius: 20px;
+      background: #e8f4ec; color: var(--verde-med); border: 1px solid rgba(74,148,99,0.15);
+    }
+
+    /* ── TOOLTIP que aparece al pasar el mouse sobre los filtros de nivel ── */
+    .filtro-btn { position: relative; }
+    .nivel-tooltip {
+      display: none;
+      position: absolute;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--verde);
+      color: var(--crema);
+      font-size: 11px;
+      line-height: 1.4;
+      padding: 6px 10px;
+      border-radius: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 2000;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+    /* Triángulo indicador del tooltip */
+    .nivel-tooltip::before {
+      content: '';
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 5px solid transparent;
+      border-right-color: var(--verde);
+    }
+    .filtro-btn:hover .nivel-tooltip { display: block; }
+
+    /* ── RESPONSIVE: ajustes para pantallas menores a 600px ── */
+    @media (max-width: 600px) {
+      #header { height: auto; min-height: 56px; flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+      #header-title { font-size: 15px; }
+      /* El buscador pasa a ocupar toda la segunda fila del header */
+      #search-wrap { order: 3; flex: 1 1 100%; max-width: 100%; }
+      #header-right { margin-left: auto; gap: 6px; }
+      /* El email se oculta en móvil por falta de espacio */
+      #usuario-email { display: none; }
+      #btn-inicio, #btn-logout { font-size: 11px; padding: 4px 10px; }
+      /* El mapa baja para dejar espacio al header de dos filas */
+      #map-wrap { top: 100px; }
+      /* El panel ocupa todo el ancho en móvil */
+      #side-panel { width: 100%; right: -100%; }
+      #leyenda { bottom: 12px; left: 8px; padding: 8px 10px; }
+      .filtro-btn { font-size: 11px; padding: 2px 4px; }
+      /* La leyenda se oculta cuando el panel lateral está abierto */
+      #side-panel.open ~ #leyenda { display: none; }
+      /* Los tooltips de nivel no se muestran en móvil */
+      .nivel-tooltip { display: none !important; }
+    }
+    @media (max-width: 400px) {
+      #header-title span { display: none; }
+    }
+
+    /* Estilo del tooltip que aparece al pasar el mouse sobre los marcadores del mapa */
+    .tucan-tooltip {
+      background: white !important; border: 1px solid rgba(0,0,0,0.12) !important;
+      border-radius: 8px !important; font-family: 'DM Sans', sans-serif !important;
+      font-size: 13px !important; font-weight: 500 !important; padding: 5px 12px !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important; color: var(--verde) !important;
+    }
+    .tucan-tooltip::before { display: none !important; }
+
+    /* ── LEYENDA: caja con filtros de nivel en la esquina inferior izquierda del mapa ── */
+    #leyenda {
+      position: absolute; bottom: 20px; left: 12px; z-index: 1000;
+      background: white; border: 1px solid var(--crema-oscura);
+      border-radius: 12px; padding: 10px 14px; font-size: 12px;
+      min-width: 170px;
+    }
+    /* Título de la sección de filtros */
+    .leyenda-label {
+      font-size: 11px; font-weight: 500; color: var(--muted);
+      margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    /* Botón de filtro individual: punto de color + nombre del nivel */
+    .filtro-btn {
+      display: flex; align-items: center; gap: 7px;
+      margin-bottom: 5px; background: none; border: none;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--texto); padding: 3px 6px;
+      border-radius: 6px; width: 100%; text-align: left;
+      transition: background 0.15s, opacity 0.2s;
+    }
+    .filtro-btn:last-child { margin-bottom: 0; }
+    .filtro-btn:hover { background: var(--crema-oscura); }
+    /* Estado apagado: el nivel está oculto en el mapa */
+    .filtro-btn.apagado { opacity: 0.35; }
+    .filtro-btn .leyenda-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    /* Checkmark que indica que el filtro está activo */
+    .filtro-btn .check-icon { margin-left: auto; font-size: 11px; color: var(--verde-med); }
+    .filtro-btn.apagado .check-icon { visibility: hidden; }
+
+    /* Scrollbar mínima en el cuerpo del panel */
+    #panel-body::-webkit-scrollbar { width: 4px; }
+    #panel-body::-webkit-scrollbar-track { background: transparent; }
+    #panel-body::-webkit-scrollbar-thumb { background: var(--crema-oscura); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER: barra superior con logo, buscador y controles de sesión -->
+<div id="header">
+  <!-- Logo SVG hecho a mano con formas de hojas -->
+  <svg id="header-logo" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M8 28 C5 22, 3 14, 10 8 C12 6, 14 7, 13 10 C12 14, 9 18, 10 24 Z" fill="#4a9463" opacity="0.85"/>
+    <path d="M18 28 C22 22, 26 14, 20 7 C18 5, 16 7, 17 10 C18 14, 21 18, 20 24 Z" fill="#6ab87a" opacity="0.85"/>
+    <path d="M14 30 C12 24, 11 16, 14 9 C15 7, 17 7, 18 9 C21 16, 20 24, 18 30 Z" fill="#2d6a44"/>
+    <line x1="16" y1="9" x2="15" y2="30" stroke="#1a4a2e" stroke-width="0.7" opacity="0.5"/>
+    <path d="M10 24 C7 21, 5 18, 8 15 C9 14, 11 14, 11 16 C11 19, 10 22, 10 24 Z" fill="#4a9463" opacity="0.7"/>
+    <path d="M20 24 C23 21, 25 18, 22 15 C21 14, 19 14, 19 16 C19 19, 20 22, 20 24 Z" fill="#6ab87a" opacity="0.7"/>
+    <line x1="16" y1="30" x2="16" y2="33" stroke="#8b5e3c" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+  <div id="header-title">
+    Geo Caribe
+    <span>Costa Rica · Limon</span>
+  </div>
+
+  <!-- Buscador: filtra lugares por nombre o subtítulo -->
+  <div id="search-wrap">
+    <input type="text" id="search-input" placeholder="Buscar lugar… (ej: Cahuita, Pacuare)" autocomplete="off"/>
+    <button id="search-clear" onclick="limpiarBusqueda()" title="Limpiar">✕</button>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- Controles de sesión: email del usuario, botón de inicio y logout -->
+  <div id="header-right">
+    <span id="usuario-email"></span>
+    <button id="btn-inicio" onclick="volverAlInicio()">↩ Inicio</button>
+    <button id="btn-logout" onclick="cerrarSesion()">Salir</button>
+  </div>
+</div>
+
+<!-- Contenedor principal: mapa + panel lateral + leyenda -->
+<div id="map-wrap">
+  <!-- El mapa de Leaflet se renderiza aquí -->
+  <div id="map"></div>
+
+  <!-- Panel lateral deslizable con el detalle del lugar seleccionado -->
+  <div id="side-panel">
+    <!-- Sección de imágenes con galería navegable -->
+    <div id="panel-img-wrap">
+      <!-- Ícono placeholder si no hay imágenes -->
+      <div id="panel-img-placeholder">🌿</div>
+      <button class="gallery-arrow hidden" id="gallery-prev" onclick="cambiarFoto(-1)">&#8249;</button>
+      <button class="gallery-arrow hidden" id="gallery-next" onclick="cambiarFoto(1)">&#8250;</button>
+      <div id="gallery-dots"></div>
+    </div>
+    <!-- Botón para cerrar el panel -->
+    <button id="panel-close" onclick="cerrarPanel()">✕</button>
+
+    <!-- Cuerpo del panel: nivel, título, descripción e info adicional -->
+    <div id="panel-content">
+      <div id="panel-body">
+        <div id="panel-nivel" class="nivel-principiante">🟢 Principiante</div>
+        <p id="panel-title">Nombre</p>
+        <p id="panel-subtitle">Subtítulo</p>
+        <p id="panel-desc">Descripción</p>
+        <!-- Tarjetas de info rápida -->
+        <div class="info-row">
+          <div class="info-card">
+            <div class="info-card-icon">🗓️</div>
+            <div class="info-card-label">Mejor época</div>
+            <div class="info-card-value" id="panel-epoca">—</div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-icon">🌿</div>
+            <div class="info-card-label">Naturaleza</div>
+            <div class="info-card-value" id="panel-naturaleza">—</div>
+          </div>
+        </div>
+        <p class="section-title">Equipo recomendado</p>
+        <div id="panel-equipo"></div>
+        <p class="section-title">Características</p>
+        <div id="panel-tags"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leyenda de niveles con filtros clicables -->
+  <div id="leyenda">
+    <div class="leyenda-label">Nivel</div>
+    <!-- Cada botón muestra/oculta los marcadores de ese nivel en el mapa -->
+    <button class="filtro-btn" id="filtro-principiante" onclick="toggleFiltro('principiante')">
+      <div class="leyenda-dot" style="background:#2d9c5a"></div>
+      <span>Principiante</span>
+      <span class="check-icon">✓</span>
+      <div class="nivel-tooltip">Accesible para todos.<br>Sin experiencia previa requerida.</div>
+    </button>
+    <button class="filtro-btn" id="filtro-intermedio" onclick="toggleFiltro('intermedio')">
+      <div class="leyenda-dot" style="background:#e08c1a"></div>
+      <span>Intermedio</span>
+      <span class="check-icon">✓</span>
+      <div class="nivel-tooltip">Requiere algo de condición física<br>y experiencia básica en naturaleza.</div>
+    </button>
+    <button class="filtro-btn" id="filtro-avanzado" onclick="toggleFiltro('avanzado')">
+      <div class="leyenda-dot" style="background:#c0392b"></div>
+      <span>Avanzado</span>
+      <span class="check-icon">✓</span>
+      <div class="nivel-tooltip">Exige buena condición física,<br>equipo especializado y experiencia.</div>
+    </button>
+  </div>
+</div>
+
+<script>
+  /* ── SUPABASE: inicialización del cliente con URL y clave pública ── */
+  const SUPABASE_URL = 'https://ipotudrokwjhmhdxtrko.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_R5Eo0TozjpknIwfjQXz_xw_Mbktj4Ok';
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* Verifica si hay sesión activa; si no, redirige al login */
+  sb.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      window.location.href = 'login.html';
+    } else {
+      /* Muestra el email del usuario en el header */
+      document.getElementById('usuario-email').textContent = data.session.user.email;
+    }
+  });
+
+  /* Cierra la sesión en Supabase y redirige al login */
+  async function cerrarSesion() {
+    await sb.auth.signOut();
+    window.location.href = 'login.html';
+  }
+
+/* =====================================================
+   DATOS: array con la información de cada lugar
+   Cada objeto tiene: coordenadas, nombre, descripción,
+   nivel de dificultad, época ideal, equipo y fotos.
+   ===================================================== */
+const lugares = [
+  {
+    latlng: [9.99074, -83.03596],
+    nombre: "Limón Centro",
+    subtitulo: "Puerto Caribe de Costa Rica",
+    desc: "Puerto Limón es la capital de la provincia de Limón y el principal puerto marítimo de Costa Rica en el Caribe. Es el corazón de la cultura afrocostarricense, con festividades como el Carnaval de Limón en octubre.",
+    nivel: "principiante",
+    epoca: "Oct–Nov (Carnaval)",
+    naturaleza: "Mar Caribe, manglares",
+    equipo: ["Ropa liviana", "Zapatos cómodos", "Protector solar", "Repelente de mosquitos", "Paraguas plegable"],
+    tags: ["Puerto histórico", "Cultura afrocaribe", "Carnaval", "Gastronomía"],
+    imgs: ["https://costarica.org/wp-content/uploads/2017/09/Limon2.jpg", "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQpO0aEgpdnlxEOEufE5Ce0b2QRV6LdvNqWiw&s"]
+  },
+  {
+    latlng: [9.7319895, -82.8211192],
+    nombre: "Playa Cahuita",
+    subtitulo: "Cahuita, Limón",
+    desc: "Una de las playas más hermosas del Caribe costarricense, junto al Parque Nacional Cahuita. Sus arrecifes de coral son los más grandes del país, perfectos para snorkel entre peces tropicales.",
+    nivel: "principiante",
+    epoca: "Feb–Apr y Sep–Oct",
+    naturaleza: "Arrecife de coral, bosque tropical",
+    equipo: ["Traje de baño", "Snorkel y gafas", "Repelente biodegradable", "Sandalias acuáticas", "Protector solar reef-safe"],
+    tags: ["Playa", "Snorkel", "Parque Nacional", "Peces tropicales"],
+    imgs: ["https://descubramoscostarica.com/sites/default/files/styles/wide/public/2021-12/cahuita-1.jpg.webp?itok=ghhC7i06", "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/17/58/fe/1b/playa-negra.jpg?w=1200&h=-1&s=1"]
+  },
+  {
+    latlng: [9.643367832448668, -82.68753794816715],
+    nombre: "Punta Uva",
+    subtitulo: "Puerto Viejo de Talamanca, Limón",
+    desc: "Considerada una de las playas más vírgenes de Costa Rica. Sus aguas turquesas y la selva que llega hasta la arena crean un ambiente de película. Ideal para nadar, bucear y observar monos y perezosos.",
+    nivel: "principiante",
+    epoca: "Feb–Apr y Sep–Oct",
+    naturaleza: "Selva tropical, aguas turquesas",
+    equipo: ["Traje de baño", "Repelente de mosquitos", "Binoculares", "Cámara sumergible", "Ropa de secado rápido"],
+    tags: ["Playa virgen", "Turquesa", "Avistamiento de fauna", "Buceo"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQC1BIMzYFSf2hNvB8ISK2sinM_aHMcgzW35Q&s", "https://www.creescapes.com/wp-content/uploads/punta-uva-beach-manzanillo.jpg"]
+  },
+  {
+    latlng: [10.0167, -83.3167],
+    nombre: "Parque Nacional Tortuguero",
+    subtitulo: "Tortuguero, Limón",
+    desc: "El 'Amazonas de Costa Rica'. Una intrincada red de canales selváticos donde viven monos, caimanes, manatíes y delfines. De julio a octubre llegan tortugas baulas y verdes a desovar en sus playas negras.",
+    nivel: "intermedio",
+    epoca: "Jul–Oct (tortugas), Mar–May (canales)",
+    naturaleza: "Canales, selva lluviosa, playa negra",
+    equipo: ["Botas de hule o impermeables", "Chubasquero", "Repelente DEET fuerte", "Linterna de cabeza", "Ropa de manga larga", "Binoculares"],
+    tags: ["Tortugas marinas", "Canales", "Monos", "Caimanes", "Manatíes"],
+    imgs: [
+      "https://costarica.org/wp-content/uploads/2014/12/Tortuguero-Canal.jpg",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSePolKaXp9QSwgX3ACiTpKXa06gA9BgwaA-w&s"
+    ]
+  },
+  {
+    latlng: [9.6582, -82.7524],
+    nombre: "Jaguar Rescue Center",
+    subtitulo: "Puerto Viejo de Talamanca",
+    desc: "Centro de rescate y rehabilitación de fauna silvestre fundado por primatólogos europeos. Alberga perezosos, monos, tucanes, iguanas y serpientes en proceso de rehabilitación. Una experiencia educativa única.",
+    nivel: "principiante",
+    epoca: "Todo el año (abren martes–domingo)",
+    naturaleza: "Fauna rescatada, selva secundaria",
+    equipo: ["Ropa cómoda de colores neutros", "Zapatos cerrados", "Repelente suave", "Cámara"],
+    tags: ["Perezosos", "Fauna silvestre", "Educación ambiental", "Familia"],
+    imgs: ["https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2a/df/91/6c/jrc.jpg?w=1200&h=900&s=1","https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0aOGkVmBFumjNNTpx4tVuaTfcqDfUsCCtMQ&s"]
+  },
+  {
+    latlng: [9.8736, -82.9381],
+    nombre: "Río Pacuare",
+    subtitulo: "Siquirres, Limón",
+    desc: "Considerado uno de los mejores ríos para rafting del mundo por National Geographic. Sus rápidos de clase III y IV atraviesan un cañón con cascadas y selva virgen.",
+    nivel: "avanzado",
+    epoca: "Jun–Oct (caudal alto), Nov–Mar (caudal medio)",
+    naturaleza: "Cañón selvático, cascadas, rápidos",
+    equipo: ["Ropa deportiva que moje", "Sandalias con agarre", "Bolsa impermeable para pertenencias", "Casco y chaleco (los provee la empresa)", "Crema solar resistente al agua"],
+    tags: ["Rafting clase IV", "Cañón", "Cascadas", "Aventura extrema"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzlTWzPs2R1UqGwHLB960C02J2zyjmOlupNg&s","https://media.tacdn.com/media/attractions-splice-spp-674x446/06/6b/8f/53.jpg"]
+  },
+  {
+    latlng: [9.5831, -82.7758],
+    nombre: "Reserva Indígena Bribri",
+    subtitulo: "Talamanca, Limón",
+    desc: "Visita el territorio ancestral del pueblo Bribri en las faldas de la Cordillera de Talamanca. Conoce sus tradiciones, prácticas de cacao sagrado y medicina natural.",
+    nivel: "intermedio",
+    epoca: "Todo el año (evitar semana lluviosa May–Jun)",
+    naturaleza: "Selva montañosa, ríos, cacao silvestre",
+    equipo: ["Botas impermeables de caña alta", "Ropa de manga larga", "Repelente fuerte", "Cantimplora", "Impermeable liviano"],
+    tags: ["Cultura indígena", "Cacao", "Ecoturismo", "Senderismo"],
+    imgs: ["https://static.wixstatic.com/media/95f0e3_9b2876e079f94496ad93a0d56dc68672~mv2.png/v1/fill/w_658,h_428,al_c,q_85,usm_0.33_1.00_0.00,enc_avif,quality_auto/95f0e3_9b2876e079f94496ad93a0d56dc68672~mv2.png","https://res.cloudinary.com/dqv2d5lem/image/upload/v1767748742/main_casas_bribri_7c1826cf8a.jpg"]
+  },
+  {
+    latlng: [9.6283, -82.6636],
+    nombre: "Playa Manzanillo",
+    subtitulo: "Manzanillo, Limón",
+    desc: "Playa rodeada por el Refugio Nacional Gandoca-Manzanillo, donde bosque de almendros de playa llega hasta el mar. Es un paraíso para el kayak de mar, snorkel en arrecifes poco profundos y avistamiento de delfines nariz de botella.",
+    nivel: "principiante",
+    epoca: "Feb–May y Sep–Oct",
+    naturaleza: "Refugio nacional, arrecife coralino, bosque de almendros",
+    equipo: ["Traje de baño", "Snorkel y gafas", "Kayak (alquiler local)", "Protector solar reef-safe", "Repelente biodegradable", "Cámara sumergible"],
+    tags: ["Playa", "Delfines", "Kayak", "Snorkel", "Refugio nacional"],
+    imgs: ["https://www.creescapes.com/wp-content/uploads/puerto-viejo-costa-rica-manzanillo-beach.jpg","https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpmtDyeSddSkBBxCH0mn2iZsIWzu7cyk0PFg&s"]
+  },
+  {
+    latlng: [9.5550, -82.7000],
+    nombre: "Refugio Gandoca-Manzanillo",
+    subtitulo: "Talamanca, Limón",
+    desc: "Refugio de vida silvestre con humedales, manglares, bosque tropical y el único arrecife de coral vivo del Pacífico Sur costarricense. Alberga manatíes, tapires, cocodrilos y tortugas laúd. Su sendero El Mono lleva hasta playas completamente solitarias.",
+    nivel: "intermedio",
+    epoca: "Mar–May (tortugas laúd), Dic–Feb (seco)",
+    naturaleza: "Manglares, humedales, arrecife coralino, bosque primario",
+    equipo: ["Botas de hule", "Repelente DEET fuerte", "Ropa de manga larga", "Chubasquero liviano", "Binoculares", "Cantimplora 2L"],
+    tags: ["Tortugas laúd", "Manatíes", "Manglares", "Senderismo", "Tapires"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqeTfsmTjGmQ7TyAo9rFl41kSZaYaUmrOP9Q&s","https://d1qqtien6gys07.cloudfront.net/wp-content/uploads/2025/03/gandoca-manzanillo-wildlife-refuge-entrance.jpg"]
+  },
+  {
+    latlng: [10.2167, -83.7667],
+    nombre: "Barra del Colorado",
+    subtitulo: "Río Colorado, Limón",
+    desc: "Zona remota de canales fluviales donde el Río Colorado desemboca en el Caribe. Paraíso para la pesca deportiva de sábalo real y róbalo. Accesible solo en avioneta o lancha desde Tortuguero, lo que le da un carácter verdaderamente salvaje.",
+    nivel: "avanzado",
+    epoca: "Ene–Apr (temporada de pesca)",
+    naturaleza: "Canales, delta fluvial, selva inundada",
+    equipo: ["Equipo de pesca (o alquiler)", "Botas de hule", "Repelente DEET fuerte", "Chubasquero", "Linterna de cabeza", "Botiquín básico"],
+    tags: ["Pesca deportiva", "Sábalo real", "Canales", "Remoto", "Naturaleza virgen"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlVikborLlh_pMJKnU0KQKHEckT_VqNqF5fw&s","https://upload.wikimedia.org/wikipedia/commons/3/3b/Barra_del_Colorado_Waterway.jpg"]
+  },
+  {
+    latlng: [10.4348, -83.9867],
+    nombre: "Refugio Nacional Caño Negro",
+    subtitulo: "Los Chiles, Alajuela (acceso norte)",
+    desc: "Humedal de importancia internacional (RAMSAR) con la mayor concentración de aves acuáticas de Centroamérica. Cigüeñas, garzas, espátulas rosadas, jacanas y caímanes habitan este lago estacional rodeado de vegetación flotante.",
+    nivel: "principiante",
+    epoca: "Dic–Mar (laguna llena, aves migratorias)",
+    naturaleza: "Humedal, lago estacional, galería de vegetación",
+    equipo: ["Binoculares de largo alcance", "Guía de aves", "Repelente", "Sombrero de ala ancha", "Protector solar", "Cámara con teleobjetivo"],
+    tags: ["Birdwatching", "Humedal RAMSAR", "Caimanes", "Aves acuáticas", "Lancha"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4bodOfSKvyXJQqSLbxOw5ghlmopfoLpLmgA&s","https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqMQHdSkq-Qi7TxQTebjO9zID7POzZQDL89g&s"]
+  },
+  {
+    latlng: [10.1878, -83.5600],
+    nombre: "Aviarios del Caribe",
+    subtitulo: "Caño Palma, Limón",
+    desc: "Centro de rescate y santuario de perezosos de dos y tres dedos, considerado el mayor del mundo. Ofrece tours guiados íntimos donde podés observar de cerca la rehabilitación y liberación de estos animales. A orillas de un canal bordeado de heliconias y garzas.",
+    nivel: "principiante",
+    epoca: "Todo el año (reserva previa recomendada)",
+    naturaleza: "Canal caribeño, jardín tropical, bosque secundario",
+    equipo: ["Ropa de colores neutros", "Zapatos cerrados", "Repelente suave", "Cámara", "Paraguas plegable"],
+    tags: ["Perezosos", "Rescate animal", "Canales", "Ecoturismo", "Familia"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSr7PLGq3g2MNHAqUK6D3v5P5u5rcowh4nYrw&s","https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvB-UczJ02t1zeviUsaCgez8PeSAMSqxLuHA&s"]
+  },
+  {
+    latlng: [9.7467, -82.8672],
+    nombre: "Playa Negra Cahuita",
+    subtitulo: "Cahuita, Limón",
+    desc: "Playa de arena volcánica negra al norte del pueblo de Cahuita, menos concurrida que la playa blanca del parque. Sus olas medianas son perfectas para surf de iniciación. Bordeada de palmas de coco y pequeños sodas locales con cocina caribeña.",
+    nivel: "principiante",
+    epoca: "Feb–Apr (surf), Sep–Oct (tranquilo)",
+    naturaleza: "Playa volcánica, palmas de coco",
+    equipo: ["Tabla de surf (alquiler local)", "Traje de baño", "Protector solar", "Ropa liviana", "Sandalias"],
+    tags: ["Surf para principiantes", "Arena negra", "Gastronomía caribeña", "Relajación"],
+    imgs: ["https://www.creescapes.com/wp-content/uploads/Playa-Negra.png","https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR0loFO0QDuqE3Gw-9QtBDBbCxCkVhgi1oeXQ&s"]
+  },
+  {
+    latlng: [9.9500, -83.0167],
+    nombre: "Siquirres y Río Reventazón",
+    subtitulo: "Siquirres, Limón",
+    desc: "La ciudad de Siquirres es la puerta de entrada al Caribe desde el Valle Central. El Río Reventazón ofrece rafting técnico de clase III ideal para quien inicia en el deporte. Sus riberas de selva densa y la presencia de aves como el martín pescador hacen la bajada aún más especial.",
+    nivel: "intermedio",
+    epoca: "Jun–Oct (caudal ideal)",
+    naturaleza: "Río de montaña, ribera selvática",
+    equipo: ["Ropa deportiva que moje", "Sandalias con agarre", "Casco y chaleco (provistos)", "Bolsa impermeable", "Crema solar resistente al agua"],
+    tags: ["Rafting clase III", "Río", "Aves ribereñas", "Aventura", "Accesible"],
+    imgs: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMccIG5BudE6ZbHIQbVIdMOqi1iBiz-fvZWA&s","https://upload.wikimedia.org/wikipedia/commons/a/ab/R%C3%ADo_Reventaz%C3%B3n._Costa_Rica.JPG"]
+  }
+];
+
+/* =====================================================
+   MAPA: inicialización con Leaflet
+   Centro en coordenadas del Caribe costarricense, zoom 9
+   ===================================================== */
+const map = L.map('map').setView([9.82, -82.9], 9);
+
+/* Capa base de tiles de OpenStreetMap */
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+
+/* Devuelve un ícono de Leaflet según el nivel del lugar */
+function crearIcono(nivel) {
+  const iconos = {
+    principiante: { iconUrl: 'https://raw.githubusercontent.com/Eslias/Geo-caribe.github.io/main/GeoCaribeProyecto/principiante1.png', iconSize: [40, 40], iconAnchor: [20, 40], tooltipAnchor: [22, -20] },
+    intermedio:   { iconUrl: 'https://raw.githubusercontent.com/Eslias/Geo-caribe.github.io/main/GeoCaribeProyecto/intermedio1.png',   iconSize: [40, 40], iconAnchor: [20, 40], tooltipAnchor: [22, -20] },
+    avanzado:     { iconUrl: 'https://raw.githubusercontent.com/Eslias/Geo-caribe.github.io/main/GeoCaribeProyecto/avanzado1.png',     iconSize: [40, 40], iconAnchor: [20, 40], tooltipAnchor: [22, -20] }
+  };
+  return L.icon(iconos[nivel] || iconos.principiante);
+}
+
+/* Agrupa marcadores por nivel para poder mostrarlos/ocultarlos con los filtros */
+const marcadoresPorNivel = { principiante: [], intermedio: [], avanzado: [] };
+/* Estado actual de cada filtro (true = visible en el mapa) */
+const filtrosActivos = { principiante: true, intermedio: true, avanzado: true };
+/* Índice rápido para buscar un marcador por nombre del lugar */
+const marcadorPorNombre = {};
+
+/* Crea un marcador por cada lugar y lo agrega al mapa */
+lugares.forEach(lugar => {
+  const marker = L.marker(lugar.latlng, { icon: crearIcono(lugar.nivel) }).addTo(map);
+  /* Tooltip con el nombre que aparece al pasar el mouse */
+  marker.bindTooltip(`<strong>${lugar.nombre}</strong>`, {
+    direction: 'right', className: 'tucan-tooltip', offset: [8, -21], permanent: false, sticky: false
+  });
+  /* Al hacer clic en el marcador, abre el panel lateral */
+  marker.on('click', () => abrirPanel(lugar));
+  marcadoresPorNivel[lugar.nivel].push(marker);
+  marcadorPorNombre[lugar.nombre.toLowerCase()] = { marker, lugar };
+});
+
+/* Activa o desactiva la visibilidad de todos los marcadores de un nivel */
+function toggleFiltro(nivel) {
+  filtrosActivos[nivel] = !filtrosActivos[nivel];
+  document.getElementById('filtro-' + nivel).classList.toggle('apagado', !filtrosActivos[nivel]);
+  (marcadoresPorNivel[nivel] || []).forEach(m => {
+    if (filtrosActivos[nivel]) { m.addTo(map); } else { m.remove(); }
+  });
+}
+
+/* =====================================================
+   BUSCADOR: filtra lugares en tiempo real mientras se escribe
+   ===================================================== */
+function buscar(query) {
+  const q = query.trim().toLowerCase();
+  const resultsEl = document.getElementById('search-results');
+  /* Muestra el botón de limpiar solo si hay texto */
+  document.getElementById('search-clear').style.display = q ? 'block' : 'none';
+
+  if (!q) { resultsEl.style.display = 'none'; return; }
+
+  /* Filtra por coincidencia en nombre o subtítulo */
+  const coincidencias = lugares.filter(l =>
+    l.nombre.toLowerCase().includes(q) ||
+    l.subtitulo.toLowerCase().includes(q)
+  );
+
+  resultsEl.style.display = 'block';
+
+  if (coincidencias.length === 0) {
+    resultsEl.innerHTML = `<div class="search-no-result">No se encontró ese lugar en Geo Caribe</div>`;
+    return;
+  }
+
+  /* Colores del punto según nivel para cada resultado */
+  const colorNivel = { principiante: '#2d9c5a', intermedio: '#e08c1a', avanzado: '#c0392b' };
+  resultsEl.innerHTML = coincidencias.map(l => `
+    <div class="search-item" onclick="seleccionarLugar('${l.nombre.replace(/'/g,"\\'")}')">
+      <div class="search-item-dot" style="background:${colorNivel[l.nivel]}"></div>
+      <div>
+        <div style="font-weight:500">${l.nombre}</div>
+        <div style="font-size:11px;color:var(--muted)">${l.subtitulo}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* Cuando el usuario elige un resultado: cierra el dropdown, abre el panel y centra el mapa */
+function seleccionarLugar(nombre) {
+  const key = nombre.toLowerCase();
+  const entry = marcadorPorNombre[key];
+  if (!entry) return;
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('search-input').value = entry.lugar.nombre;
+  abrirPanel(entry.lugar);
+  map.flyTo(entry.lugar.latlng, 13, { duration: 1 });
+}
+
+/* Limpia el campo de búsqueda y oculta resultados */
+function limpiarBusqueda() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('search-clear').style.display = 'none';
+}
+
+/* Escucha cambios en el input del buscador */
+document.getElementById('search-input').addEventListener('input', e => buscar(e.target.value));
+/* Cierra el dropdown al hacer clic fuera del buscador */
+document.addEventListener('click', e => {
+  if (!document.getElementById('search-wrap').contains(e.target))
+    document.getElementById('search-results').style.display = 'none';
+});
+
+/* =====================================================
+   GALERÍA DE IMÁGENES en el panel lateral
+   ===================================================== */
+   
+/* Índice de la foto activa y total de fotos del lugar actual */
+let fotoActual = 0;
+let fotosTotal = 0;
+
+/* Construye los slides, puntos y flechas de la galería para un lugar */
+function construirGaleria(imgs) {
+  const wrap = document.getElementById('panel-img-wrap');
+  /* Limpia slides anteriores */
+  wrap.querySelectorAll('.gallery-slide').forEach(el => el.remove());
+  const placeholder = document.getElementById('panel-img-placeholder');
+  const dotsEl = document.getElementById('gallery-dots');
+  dotsEl.innerHTML = '';
+  fotoActual = 0;
+  fotosTotal = imgs ? imgs.length : 0;
+
+  /* Si no hay imágenes, muestra el ícono de planta */
+  if (!imgs || imgs.length === 0) {
+    placeholder.style.display = 'flex';
+    document.getElementById('gallery-prev').classList.add('hidden');
+    document.getElementById('gallery-next').classList.add('hidden');
+    return;
+  }
+
+  placeholder.style.display = 'none';
+  imgs.forEach((url, i) => {
+    const slide = document.createElement('div');
+    /* Solo el primer slide es visible al abrir */
+    slide.className = 'gallery-slide' + (i > 0 ? ' hidden' : '');
+    const img = document.createElement('img');
+    img.src = url; img.alt = '';
+    /* Si la imagen no carga, pone fondo verde como fallback */
+    img.onerror = () => { slide.style.background = '#2d6a44'; img.style.display = 'none'; };
+    slide.appendChild(img);
+    wrap.insertBefore(slide, document.getElementById('gallery-prev'));
+    /* Crea un punto por cada imagen (solo si hay más de una) */
+    if (imgs.length > 1) {
+      const dot = document.createElement('button');
+      dot.className = 'gdot' + (i === 0 ? ' active' : '');
+      dot.onclick = () => irAFoto(i);
+      dotsEl.appendChild(dot);
+    }
+  });
+
+  /* Muestra las flechas solo si hay más de una imagen */
+  const mostrarFlechas = imgs.length > 1;
+  document.getElementById('gallery-prev').classList.toggle('hidden', !mostrarFlechas);
+  document.getElementById('gallery-next').classList.toggle('hidden', !mostrarFlechas);
+}
+
+/* Cambia a la foto en el índice indicado, actualizando slides y puntos */
+function irAFoto(idx) {
+  const slides = document.querySelectorAll('.gallery-slide');
+  if (slides.length === 0) return;
+  slides[fotoActual].classList.add('hidden');
+  /* Cicla en ambas direcciones con módulo */
+  fotoActual = (idx + fotosTotal) % fotosTotal;
+  slides[fotoActual].classList.remove('hidden');
+  document.querySelectorAll('.gdot').forEach((d, i) => d.classList.toggle('active', i === fotoActual));
+}
+
+/* Avanza o retrocede una foto según la dirección (+1 / -1) */
+function cambiarFoto(dir) { irAFoto(fotoActual + dir); }
+
+/* =====================================================
+   PANEL LATERAL: muestra la info del lugar seleccionado
+   ===================================================== */
+let lugarActual = null;
+
+/* Rellena el panel con los datos del lugar y lo desliza a la vista */
+function abrirPanel(lugar) {
+  lugarActual = lugar;
+  /* Texto e ícono del nivel de dificultad */
+  const nivelEl = document.getElementById('panel-nivel');
+  const nivelTextos = { principiante: '🟢 Principiante', intermedio: '🟡 Intermedio', avanzado: '🔴 Avanzado' };
+  nivelEl.textContent = nivelTextos[lugar.nivel] || lugar.nivel;
+  nivelEl.className = 'nivel-' + lugar.nivel;
+  document.getElementById('panel-title').textContent = lugar.nombre;
+  document.getElementById('panel-subtitle').textContent = lugar.subtitulo;
+  document.getElementById('panel-desc').textContent = lugar.desc;
+  document.getElementById('panel-epoca').textContent = lugar.epoca;
+  document.getElementById('panel-naturaleza').textContent = lugar.naturaleza;
+  /* Genera los tags de características */
+  document.getElementById('panel-tags').innerHTML = lugar.tags.map(t => `<span class="ptag">${t}</span>`).join('');
+  /* Genera las etiquetas de equipo recomendado */
+  document.getElementById('panel-equipo').innerHTML = (lugar.equipo || []).map(e => `<span class="equipo-tag">${e}</span>`).join('');
+  /* Construye la galería; admite array de imgs o imagen única legada */
+  construirGaleria(lugar.imgs || (lugar.img ? [lugar.img] : []));
+  /* Desliza el panel a la vista */
+  document.getElementById('side-panel').classList.add('open');
+  /* Centra el mapa en el lugar, manteniendo el zoom actual si es mayor a 11 */
+  map.flyTo(lugar.latlng, Math.max(map.getZoom(), 11), { duration: 0.8 });
+}
+
+/* Oculta el panel lateral */
+function cerrarPanel() {
+  document.getElementById('side-panel').classList.remove('open');
+}
+
+/* Cierra el panel y aleja el mapa a la vista inicial */
+function volverAlInicio() {
+  map.flyTo([9.82, -82.9], 9, { duration: 1 });
+  cerrarPanel();
+}
+
+/* Inicializar */
+</script>
+</body>
+</html>
