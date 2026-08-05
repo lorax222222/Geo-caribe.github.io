@@ -3,224 +3,113 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Geo Caribe — Iniciar Sesión</title>
-
-  <!-- Tipografías: Playfair para títulos, DM Sans para texto general -->
+  <title>Geo Costa Rica — Iniciar Sesion</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-
-  <!-- SDK de Supabase para autenticación -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    /* Paleta de colores del proyecto */
     :root {
-      --verde: #1a4a2e;
-      --verde-med: #2d6a44;
-      --verde-claro: #4a9463;
-      --crema: #f5f0e8;
-      --crema-oscura: #ede5d8;
-      --texto: #1c1c1c;
-      --muted: #6b6b6b;
+      --verde: #1a4a2e; --verde-med: #2d6a44; --verde-claro: #4a9463;
+      --crema: #f5f0e8; --crema-oscura: #ede5d8; --texto: #1c1c1c; --muted: #6b6b6b;
     }
-
-    /* Fondo verde oscuro, tarjeta centrada */
     body {
-      min-height: 100vh;
-      font-family: 'DM Sans', sans-serif;
-      background: var(--verde);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      min-height: 100vh; font-family: 'DM Sans', sans-serif;
+      background: var(--verde); display: flex;
+      align-items: center; justify-content: center; padding: 20px;
     }
-
-    /* Contenedor principal del formulario */
     .card {
-      background: var(--crema);
-      border-radius: 18px;
-      width: 100%;
-      max-width: 420px;
-      padding: 40px 36px;
+      background: var(--crema); border-radius: 18px;
+      width: 100%; max-width: 420px; padding: 40px 36px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     }
-
-    /* Encabezado con logo e ícono */
-    .logo-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 28px;
-    }
-
-    .logo-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 22px;
-      font-weight: 600;
-      color: var(--verde);
-      line-height: 1.1;
-    }
-
-    /* Subtítulo pequeño bajo el nombre */
-    .logo-title span {
-      display: block;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 11px;
-      font-weight: 300;
-      color: var(--muted);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      color: var(--verde);
-      margin-bottom: 6px;
-    }
-
-    .subtitulo {
-      font-size: 14px;
-      color: var(--muted);
-      margin-bottom: 28px;
-    }
-
-    /* Etiquetas de campo en mayúsculas */
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--verde);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 6px;
-    }
-
+    .logo-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+    .logo-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--verde); line-height: 1.1; }
+    .logo-title span { display: block; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 300; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--verde); margin-bottom: 6px; }
+    .subtitulo { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+    label { display: block; font-size: 12px; font-weight: 500; color: var(--verde); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
     input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1.5px solid var(--crema-oscura);
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      color: var(--texto);
-      background: white;
-      margin-bottom: 18px;
-      outline: none;
-      transition: border-color 0.2s;
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--crema-oscura);
+      border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px;
+      color: var(--texto); background: white; margin-bottom: 18px;
+      outline: none; transition: border-color 0.2s;
     }
-
-    /* Resalta el borde al enfocar el campo */
     input:focus { border-color: var(--verde-claro); }
-
-    /* Botón principal de login */
     #btn-login {
-      width: 100%;
-      padding: 14px;
-      background: var(--verde);
-      color: var(--crema);
-      border: none;
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-bottom: 16px;
+      width: 100%; padding: 14px; background: var(--verde); color: var(--crema);
+      border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 500; cursor: pointer;
+      transition: background 0.2s; margin-bottom: 16px;
     }
-
     #btn-login:hover { background: var(--verde-med); }
     #btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    .divider {
-      text-align: center;
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
-
-    /* Botón secundario para ir al registro */
+    .divider { text-align: center; font-size: 13px; color: var(--muted); margin-bottom: 16px; }
     #btn-registro {
-      width: 100%;
-      padding: 13px;
-      background: transparent;
-      color: var(--verde);
-      border: 1.5px solid var(--verde-claro);
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
+      width: 100%; padding: 13px; background: transparent; color: var(--verde);
+      border: 1.5px solid var(--verde-claro); border-radius: 10px;
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+      cursor: pointer; transition: background 0.2s; margin-bottom: 14px;
     }
-
     #btn-registro:hover { background: var(--crema-oscura); }
-
-    /* Área de mensajes de error o éxito */
-    #mensaje {
-      margin-top: 16px;
-      padding: 12px 14px;
-      border-radius: 10px;
-      font-size: 14px;
-      display: none;
+    .olvide-link {
+      text-align: center; display: block;
+      font-size: 13px; color: var(--verde-claro);
+      text-decoration: none; margin-top: 4px;
     }
-
+    .olvide-link:hover { text-decoration: underline; }
+    #mensaje {
+      margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+      font-size: 14px; display: none;
+    }
     #mensaje.error { background: #fdecea; color: #a93226; border: 1px solid #f5c6c2; }
     #mensaje.exito { background: #e6f4ea; color: #2d6a44; border: 1px solid #b7dfbf; }
   </style>
 </head>
 <body>
-
 <div class="card">
-  <!-- Logo con ícono SVG de hoja/planta -->
   <div class="logo-wrap">
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
       <path d="M8 28 C5 22, 3 14, 10 8 C12 6, 14 7, 13 10 C12 14, 9 18, 10 24 Z" fill="#4a9463" opacity="0.85"/>
       <path d="M18 28 C22 22, 26 14, 20 7 C18 5, 16 7, 17 10 C18 14, 21 18, 20 24 Z" fill="#6ab87a" opacity="0.85"/>
       <path d="M14 30 C12 24, 11 16, 14 9 C15 7, 17 7, 18 9 C21 16, 20 24, 18 30 Z" fill="#2d6a44"/>
       <line x1="16" y1="30" x2="16" y2="33" stroke="#8b5e3c" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div class="logo-title">
-      Geo Caribe
-      <span>Costa Rica · Limón</span>
+      Geo Costa Rica
+      <span>Explorador de Destinos</span>
     </div>
   </div>
 
   <h2>Bienvenido</h2>
-  <p class="subtitulo">Iniciá sesión para explorar el mapa</p>
+  <p class="subtitulo">Inicia sesion para explorar el mapa</p>
 
-  <label for="email">Correo electrónico</label>
+  <label for="email">Correo electronico</label>
   <input type="email" id="email" placeholder="tucorreo@ejemplo.com"/>
 
-  <label for="password">Contraseña</label>
+  <label for="password">Contrasena</label>
   <input type="password" id="password" placeholder="••••••••"/>
 
-  <button id="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+  <button id="btn-login" onclick="iniciarSesion()">Iniciar sesion</button>
 
-  <div class="divider">¿No tenés cuenta?</div>
-
-  <!-- Redirige a la pantalla de registro -->
+  <div class="divider">No tenes cuenta?</div>
   <button id="btn-registro" onclick="window.location.href='registro.html'">Crear cuenta nueva</button>
+
+  <a href="olvide-contrasena.html" class="olvide-link">Olvidaste tu contrasena?</a>
 
   <div id="mensaje"></div>
 </div>
 
 <script>
-  // Credenciales del proyecto en Supabase
-  const SUPABASE_URL = 'https://ipotudrokwjhmhdxtrko.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_R5Eo0TozjpknIwfjQXz_xw_Mbktj4Ok';
-
+  const SUPABASE_URL = 'https://tlxhcyrmyyqcpkszveft.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_w5VBjTLIDHZmvDQE7OQSjg_oRC2WQH6';
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // Si ya hay sesión activa, va directo al mapa
   sb.auth.getSession().then(({ data }) => {
     if (data.session) window.location.href = 'index.html';
   });
 
-  // Muestra un mensaje de error o éxito bajo el formulario
   function mostrarMensaje(texto, tipo) {
     const el = document.getElementById('mensaje');
     el.textContent = texto;
@@ -228,39 +117,25 @@
     el.style.display = 'block';
   }
 
-  // Valida campos y llama a Supabase para autenticar al usuario
   async function iniciarSesion() {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     const btn = document.getElementById('btn-login');
-
-    if (!email || !password) {
-      mostrarMensaje('Por favor completá todos los campos.', 'error');
-      return;
-    }
-
-    // Deshabilita el botón mientras procesa
+    if (!email || !password) { mostrarMensaje('Por favor completa todos los campos.', 'error'); return; }
     btn.disabled = true;
     btn.textContent = 'Entrando...';
-
     const { error } = await sb.auth.signInWithPassword({ email, password });
-
     if (error) {
-      mostrarMensaje('Correo o contraseña incorrectos.', 'error');
+      mostrarMensaje('Correo o contrasena incorrectos.', 'error');
       btn.disabled = false;
-      btn.textContent = 'Iniciar sesión';
+      btn.textContent = 'Iniciar sesion';
     } else {
-      // Login exitoso: redirige al mapa tras un breve delay
-      mostrarMensaje('¡Sesión iniciada! Redirigiendo...', 'exito');
+      mostrarMensaje('Sesion iniciada! Redirigiendo...', 'exito');
       setTimeout(() => window.location.href = 'index.html', 1000);
     }
   }
 
-  // Permite enviar el formulario con Enter
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Enter') iniciarSesion();
-  });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') iniciarSesion(); });
 </script>
-
 </body>
 </html>
