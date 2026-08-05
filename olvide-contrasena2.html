@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geo Costa Rica — Recuperar contrasena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --verde: #1a4a2e; --verde-med: #2d6a44; --verde-claro: #4a9463;
+      --crema: #f5f0e8; --crema-oscura: #ede5d8; --texto: #1c1c1c; --muted: #6b6b6b;
+    }
+    body {
+      min-height: 100vh; font-family: 'DM Sans', sans-serif;
+      background: var(--verde); display: flex;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .card {
+      background: var(--crema); border-radius: 18px;
+      width: 100%; max-width: 420px; padding: 40px 36px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+    .logo-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--verde); line-height: 1.1; }
+    .logo-title span { display: block; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 300; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--verde); margin-bottom: 6px; }
+    .subtitulo { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.5; }
+    label { display: block; font-size: 12px; font-weight: 500; color: var(--verde); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--crema-oscura);
+      border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px;
+      color: var(--texto); background: white; margin-bottom: 18px;
+      outline: none; transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--verde-claro); }
+    #vista-nueva { display: none; }
+    #btn-enviar, #btn-nueva {
+      width: 100%; padding: 14px; background: var(--verde); color: var(--crema);
+      border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 500; cursor: pointer;
+      transition: background 0.2s; margin-bottom: 16px;
+    }
+    #btn-enviar:hover, #btn-nueva:hover { background: var(--verde-med); }
+    #btn-enviar:disabled, #btn-nueva:disabled { opacity: 0.6; cursor: not-allowed; }
+    #btn-volver {
+      width: 100%; padding: 13px; background: transparent; color: var(--verde);
+      border: 1.5px solid var(--verde-claro); border-radius: 10px;
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+      cursor: pointer; transition: background 0.2s;
+    }
+    #btn-volver:hover { background: var(--crema-oscura); }
+    #mensaje {
+      margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+      font-size: 14px; display: none; line-height: 1.5;
+    }
+    #mensaje.error { background: #fdecea; color: #a93226; border: 1px solid #f5c6c2; }
+    #mensaje.exito { background: #e6f4ea; color: #2d6a44; border: 1px solid #b7dfbf; }
+    .pass-wrap { position: relative; }
+    .toggle-pass {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-65%);
+      background: none; border: none; cursor: pointer; font-size: 16px; color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-wrap">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <path d="M8 28 C5 22, 3 14, 10 8 C12 6, 14 7, 13 10 C12 14, 9 18, 10 24 Z" fill="#4a9463" opacity="0.85"/>
+      <path d="M18 28 C22 22, 26 14, 20 7 C18 5, 16 7, 17 10 C18 14, 21 18, 20 24 Z" fill="#6ab87a" opacity="0.85"/>
+      <path d="M14 30 C12 24, 11 16, 14 9 C15 7, 17 7, 18 9 C21 16, 20 24, 18 30 Z" fill="#2d6a44"/>
+      <line x1="16" y1="30" x2="16" y2="33" stroke="#8b5e3c" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <div class="logo-title">
+      Geo Costa Rica
+      <span>Explorador de Destinos</span>
+    </div>
+  </div>
+
+  <!-- VISTA 1: pedir email -->
+  <div id="vista-email">
+    <h2>Recuperar cuenta</h2>
+    <p class="subtitulo">Ingresa tu correo y te enviaremos un enlace para restablecer tu contrasena.</p>
+    <label for="email">Correo electronico</label>
+    <input type="email" id="email" placeholder="tucorreo@ejemplo.com"/>
+    <button id="btn-enviar" onclick="enviarCorreo()">Enviar enlace</button>
+    <button id="btn-volver" onclick="window.location.href='login.html'">Volver al inicio de sesion</button>
+  </div>
+
+  <!-- VISTA 2: nueva contrasena -->
+  <div id="vista-nueva">
+    <h2>Nueva contrasena</h2>
+    <p class="subtitulo">Ingresa tu nueva contrasena para recuperar el acceso.</p>
+    <label for="nueva-pass">Nueva contrasena</label>
+    <div class="pass-wrap">
+      <input type="password" id="nueva-pass" placeholder="Minimo 6 caracteres"/>
+      <button class="toggle-pass" type="button" onclick="togglePass('nueva-pass', this)">👁️</button>
+    </div>
+    <label for="confirmar-pass">Confirmar contrasena</label>
+    <div class="pass-wrap">
+      <input type="password" id="confirmar-pass" placeholder="Repite la contrasena"/>
+      <button class="toggle-pass" type="button" onclick="togglePass('confirmar-pass', this)">👁️</button>
+    </div>
+    <button id="btn-nueva" onclick="actualizarContrasena()">Guardar nueva contrasena</button>
+  </div>
+
+  <div id="mensaje"></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://tlxhcyrmyyqcpkszveft.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_w5VBjTLIDHZmvDQE7OQSjg_oRC2WQH6';
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function mostrarMensaje(texto, tipo) {
+    const el = document.getElementById('mensaje');
+    el.textContent = texto;
+    el.className = tipo;
+    el.style.display = 'block';
+  }
+
+  // Detecta si el usuario llego desde el link del correo
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('vista-email').style.display = 'none';
+      document.getElementById('vista-nueva').style.display = 'block';
+    }
+  });
+
+  async function enviarCorreo() {
+    const email = document.getElementById('email').value.trim();
+    const btn = document.getElementById('btn-enviar');
+    if (!email) { mostrarMensaje('Por favor ingresa tu correo.', 'error'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href
+    });
+    if (error) {
+      mostrarMensaje('Error al enviar el correo. Verifica la direccion.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Enviar enlace';
+    } else {
+      mostrarMensaje('Correo enviado. Revisa tu bandeja de entrada (tambien el spam).', 'exito');
+      btn.textContent = 'Correo enviado';
+    }
+  }
+
+  async function actualizarContrasena() {
+    const nueva = document.getElementById('nueva-pass').value;
+    const confirmar = document.getElementById('confirmar-pass').value;
+    const btn = document.getElementById('btn-nueva');
+    if (!nueva || !confirmar) { mostrarMensaje('Completa ambos campos.', 'error'); return; }
+    if (nueva.length < 6) { mostrarMensaje('La contrasena debe tener al menos 6 caracteres.', 'error'); return; }
+    if (nueva !== confirmar) { mostrarMensaje('Las contrasenas no coinciden.', 'error'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    const { error } = await sb.auth.updateUser({ password: nueva });
+    if (error) {
+      mostrarMensaje('Error al actualizar. El enlace puede haber expirado.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Guardar nueva contrasena';
+    } else {
+      mostrarMensaje('Contrasena actualizada! Redirigiendo...', 'exito');
+      setTimeout(() => window.location.href = 'index.html', 1500);
+    }
+  }
+
+  function togglePass(inputId, btn) {
+    const input = document.getElementById(inputId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁️' : '🙈';
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (document.getElementById('vista-email').style.display !== 'none') enviarCorreo();
+      else actualizarContrasena();
+    }
+  });
+</script>
+</body>
+</html>
